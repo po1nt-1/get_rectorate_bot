@@ -65,21 +65,28 @@ def url_to_info(relative_url):
     return rectore_info
 
 
-def main():
+def parser():
     main_url = 'https://www.dvfu.ru/about/rectorate/scheme/'
     soup = url_to_bs(main_url)
 
     rectore_url = soup.select_one(
-        '.secondline > td:nth-child(2) > table:nth-child(1) > tbody:nth-child(1) > tr:nth-child(1) > td:nth-child(1) > a:nth-child(1)').get('href')
+        '.secondline > td:nth-child(2) > table:nth-child(1) > '
+        'tbody:nth-child(1) > tr:nth-child(1) > td:nth-child(1) > a:nth-child(1)'
+    ).get('href')
     prorector_urls = [prorector.get('href') for prorector in soup.select_one(
-        'td.node-container:nth-child(1) > table:nth-child(1) > tbody:nth-child(1)').find_all('a')]
+        'td.node-container:nth-child(1) > table:nth-child(1) > '
+        'tbody:nth-child(1)'
+    ).find_all('a')]
 
     data = [url_to_info(rectore_url), ]
     for prorector_url in prorector_urls:
         data.append(url_to_info(prorector_url))
 
+    for i, doc in enumerate(data):
+        data[i].update({'const': False})
+
     return data
 
 
 if __name__ == "__main__":
-    main()
+    print(parser())
