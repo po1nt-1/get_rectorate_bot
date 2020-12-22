@@ -1,0 +1,6 @@
+aiogram
+uvloop
+ujson
+aiohttp[speedups]
+pymongo
+starlette
