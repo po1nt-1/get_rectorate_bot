@@ -1,17 +1,32 @@
+import inspect
 import json
 import multiprocessing as mp
+import os
+import sys
 import time
 from parser import parser
 
 import requests
 
 import db
-from service import Local_Error, path_to
+
+
+def get_script_dir(follow_symlinks=True):
+    '''получить директорию со скриптом'''
+
+    # https://clck.ru/P8NUA
+    if getattr(sys, 'frozen', False):
+        path = os.path.abspath(sys.executable)
+    else:
+        path = inspect.getabsfile(get_script_dir)
+    if follow_symlinks:
+        path = os.path.realpath(path)
+    return os.path.dirname(path)
 
 
 def init_token():
     global token
-    with open(path_to('token'), 'r', encoding='utf-8') as f:
+    with open(os.path.join(get_script_dir(), 'token'), 'r', encoding='utf-8') as f:
         token = f.read()
 
 
@@ -303,13 +318,13 @@ def long_pool():
                         str(edit_message_obj['message_id'])
                     )
 
-                    worker_flag = False
-                    edit_flag_1 = False
-                    edit_flag_11 = False
-                    edit_flag_12 = False
-                    edit_flag_13 = False
-                    edit_user_id = 0
-                    edit_chat_id = 0
+                worker_flag = False
+                edit_flag_1 = False
+                edit_flag_11 = False
+                edit_flag_12 = False
+                edit_flag_13 = False
+                edit_user_id = 0
+                edit_chat_id = 0
 
             elif edit_flag_1:
                 edit_message_obj = command_message_handler(obj_, 'edit')
@@ -367,6 +382,14 @@ def long_pool():
                             edit_flag_13 = True
                         edit_user_id = message_obj['user_id']
                         edit_chat_id = message_obj['chat_id']
+                else:
+                    worker_flag = False
+                    edit_flag_1 = False
+                    edit_flag_11 = False
+                    edit_flag_12 = False
+                    edit_flag_13 = False
+                    edit_user_id = 0
+                    edit_chat_id = 0
 
             elif worker_flag:
                 worker_message_obj = command_message_handler(obj_, 'worker')
@@ -416,6 +439,14 @@ def long_pool():
                         edit_flag_1 = False
                         worker_user_id = 0
                         worker_chat_id = 0
+                else:
+                    worker_flag = False
+                    edit_flag_1 = False
+                    edit_flag_11 = False
+                    edit_flag_12 = False
+                    edit_flag_13 = False
+                    edit_user_id = 0
+                    edit_chat_id = 0
 
             else:
                 message_obj = message_handler(obj_)
@@ -455,7 +486,7 @@ def main():
         while True:
             try:
                 long_pool()
-            except requests.ConnectionError:
+            except requests.exceptions.ConnectionError:
                 continue
     except KeyboardInterrupt:
         pass
