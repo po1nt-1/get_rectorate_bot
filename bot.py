@@ -43,6 +43,10 @@ def message_filter(message_obj):
         message = [word.lower().strip()
                    for word in message_obj['text'].split(' ', 1)]
 
+        if '/edit' == message[0]:
+            message_obj.update({'edit': True})
+            return message_obj
+
         if len(message) == 2:
             command = message[0]
             message = message[1]
@@ -50,15 +54,11 @@ def message_filter(message_obj):
                 message_obj['text'] = message
                 message_obj.update({'edit': False})
                 return message_obj
-            if '/edit' in command:
-                message_obj['text'] = message
-                message_obj.update({'edit': True})
-                return message_obj
     return None
 
 
-def edit_message_handler(row_obj_):
-    sieve_1 = row_obj_.get('message')
+def command_message_handler(row_obj, overload):
+    sieve_1 = row_obj.get('message')
     if sieve_1:
         sieve_2 = sieve_1.get('reply_to_message')
 
@@ -73,10 +73,34 @@ def edit_message_handler(row_obj_):
                         and sieve_2['chat'].get('id'):
 
                     if sieve_1['chat']['id'] == sieve_2['chat']['id'] \
-                        and (sieve_1['text'] == "Вставить"
-                             or sieve_1['text'] == "Изменить"
-                             or sieve_1['text'] == "Удалить") \
-                            and sieve_2['text'] == "Какое действие выполнить?":
+                            and sieve_1['text']:
+
+                        if overload == 'worker':
+                            if (sieve_1['text'] == "Только ФИО"
+                                or sieve_1['text'] == "Всё") \
+                                    and sieve_2['text'] == "Какую информацию вывести?":
+                                pass
+                            else:
+                                return None
+                        elif overload == 'edit':
+                            if sieve_2['text'] == "Какое действие выполнить?"\
+                                    and sieve_1['text']:
+                                pass
+                            else:
+                                return None
+                        elif overload == 'response_edit':
+                            if 'Введите данные в формате' in sieve_2['text']:
+                                pass
+
+                            elif 'Введите новые данные в формате' in sieve_2['text']:
+                                pass
+
+                            elif 'Введите должность, данные' in sieve_2['text']:
+                                pass
+                            else:
+                                return None
+                        else:
+                            return None
 
                         return {
                             'message_id': sieve_1['message_id'],
@@ -84,42 +108,14 @@ def edit_message_handler(row_obj_):
                             'chat_id': sieve_1['chat']['id'],
                             'text': sieve_1['text']
                         }
+
     return None
 
 
-def worker_message_handler(row_obj_):
-    sieve_1 = row_obj_.get('message')
-    if sieve_1:
-        sieve_2 = sieve_1.get('reply_to_message')
-
-        if sieve_2 and sieve_1.get('message_id'):
-            if sieve_1.get('from') and sieve_1.get('chat') \
-                    and sieve_2.get('from') and sieve_2.get('chat') \
-                    and sieve_1.get('text') and sieve_2.get('text'):
-
-                if sieve_1['from'].get('id') \
-                        and sieve_1['chat'].get('id') \
-                        and sieve_2['from'].get('id') \
-                        and sieve_2['chat'].get('id'):
-
-                    if sieve_1['chat']['id'] == sieve_2['chat']['id'] \
-                        and (sieve_1['text'] == "Только ФИО"
-                             or sieve_1['text'] == "Всё") \
-                            and sieve_2['text'] == "Какую информацию вывести?":
-
-                        return {
-                            'message_id': sieve_1['message_id'],
-                            'user_id': sieve_1['from']['id'],
-                            'chat_id': sieve_1['chat']['id'],
-                            'text': sieve_1['text']
-                        }
-    return None
-
-
-def message_handler(row_obj_):  # TODO: правильно обрабатывать /edit
+def message_handler(row_obj):
     message_obj = {}
 
-    sieve = row_obj_.get('message')
+    sieve = row_obj.get('message')
     if sieve:
         sieve = sieve.get('entities')
         if sieve:
@@ -127,10 +123,10 @@ def message_handler(row_obj_):  # TODO: правильно обрабатыва�
                 sieve = sieve[0].get('type')
                 if sieve == 'bot_command':
                     if sieve:
-                        chat = row_obj_['message'].get('chat')
-                        text = row_obj_['message'].get('text')
-                        from_ = row_obj_['message'].get('from')
-                        message_id = row_obj_['message'].get('message_id')
+                        chat = row_obj['message'].get('chat')
+                        text = row_obj['message'].get('text')
+                        from_ = row_obj['message'].get('from')
+                        message_id = row_obj['message'].get('message_id')
                         if text and chat and from_ and message_id:
                             if chat.get('id'):
                                 if from_.get('id'):
@@ -189,9 +185,12 @@ def show_edit_keyboard(message_obj):
     if admin_list.get('ok'):
         admin_list = [admin['user']['id']
                       for admin in admin_list['result']]
-    if message_obj['user_id'] in admin_list:
-        print("изменяем данные на",
-              message_obj['text'])
+    if message_obj['user_id'] not in admin_list:
+        bot_request('sendMessage',
+                    'chat_id=' + str(message_obj['chat_id']),
+                    'text=' + str("У вас недостаточно прав для этого."),
+                    'reply_to_message_id=' + str(message_obj['message_id'])
+                    )
 
     json_keyboard = json.dumps({
         'keyboard': [["Вставить", "Изменить", "Удалить"]],
@@ -213,7 +212,10 @@ def long_pool():
 
     first_step = True
     worker_flag = False
-    edit_flag = False
+    edit_flag_1 = False
+    edit_flag_11 = False
+    edit_flag_12 = False
+    edit_flag_13 = False
 
     worker_user_id = 0
     worker_chat_id = 0
@@ -238,13 +240,87 @@ def long_pool():
             if first_step:
                 first_step = False
 
-            if edit_flag:
-                edit_message_obj = edit_message_handler(obj_)
+            if edit_flag_11 or edit_flag_12 or edit_flag_13:
+                response_edit_message_obj = command_message_handler(
+                    obj_, 'response_edit')
+                if response_edit_message_obj:
+                    text = response_edit_message_obj['text']
+
+                    answer_text = ''
+                    if edit_flag_11 or edit_flag_12:
+                        try:
+                            text = json.loads(text)
+
+                            if isinstance(text, dict):
+                                if text.get('position'):
+                                    for value in list(text.values()):
+                                        if not isinstance(value, str):
+                                            raise ValueError
+
+                                    if edit_flag_11:
+                                        if not db.insert(text):
+                                            time.sleep(1.5)
+                                            if not db.insert(text):
+                                                answer_text = 'Ошибка добавления, попробуйте ещё раз'
+                                            else:
+                                                answer_text = 'Добавление прошло успешно'
+                                        else:
+                                            answer_text = 'Добавление прошло успешно'
+
+                                    elif edit_flag_12:
+                                        if not db.edit(text['position'], text):
+                                            time.sleep(1.5)
+                                            if not db.edit(text['position'], text):
+                                                answer_text = 'Ошибка изменения, попробуйте ещё раз'
+                                            else:
+                                                answer_text = 'Изменение прошло успешно'
+                                        else:
+                                            answer_text = 'Изменение прошло успешно'
+                                else:
+                                    answer_text = 'Некорректный ввод'
+                            else:
+                                answer_text = 'Некорректный ввод'
+                        except ValueError:
+                            answer_text = 'Некорректный ввод'
+                    elif edit_flag_13:
+                        if text:
+                            if not db.remove(text):
+                                time.sleep(1.5)
+                                if not db.remove(text):
+                                    answer_text = 'Ошибка удаления, попробуйте ещё раз'
+                                else:
+                                    answer_text = 'Удаление прошло успешно'
+                            else:
+                                answer_text = 'Удаление прошло успешно'
+
+                    bot_request(
+                        'sendMessage',
+                        'chat_id=' +
+                        str(edit_chat_id),
+                        'parse_mode=HTML',
+                        'text=' + answer_text,
+                        'reply_to_message_id=' +
+                        str(edit_message_obj['message_id'])
+                    )
+
+                    worker_flag = False
+                    edit_flag_1 = False
+                    edit_flag_11 = False
+                    edit_flag_12 = False
+                    edit_flag_13 = False
+                    edit_user_id = 0
+                    edit_chat_id = 0
+
+            elif edit_flag_1:
+                edit_message_obj = command_message_handler(obj_, 'edit')
                 if edit_message_obj:
-                    if worker_user_id == edit_message_obj['user_id'] \
+                    if edit_user_id == edit_message_obj['user_id'] \
                             and edit_chat_id == edit_message_obj['chat_id']:
+                        sub_edit_flag_11 = False
+                        sub_edit_flag_12 = False
+                        sub_edit_flag_13 = False
                         if edit_message_obj['text'] == 'Вставить':
-                            response = 'Введите данные в формате json-словаря. Шаблон: \n' + \
+                            response = '<b>Введите данные в формате json-словаря.</b>\nШаблон: \n' + \
                                 '{\n' + \
                                 '\t"position": "Поле должности является обязательным",\n' + \
                                 '\t"office": "A 101",\n' + \
@@ -254,27 +330,46 @@ def long_pool():
                                 '\t"email": "ivanov.ii@dvfu.ru",\n' + \
                                 '\t"phone": "8 (423) 212 34 55 (доб. 2010)"\n' + \
                                 '}'
-
+                            sub_edit_flag_11 = True
                         elif edit_message_obj['text'] == 'Изменить':
-                            response = ''
+                            response = '<b>Введите новые данные в формате json-словаря.</b>\nШаблон: \n' + \
+                                '{\n' + \
+                                '\t"position": "Поле должности является обязательным",\n' + \
+                                '\t"office": "A 101",\n' + \
+                                '\t"surname": "Иванов",\n' + \
+                                '\t"name": "Иван",\n' + \
+                                '\t"middle_name": "Иванович",\n' + \
+                                '\t"email": "ivanov.ii@dvfu.ru",\n' + \
+                                '\t"phone": "8 (423) 212 34 55 (доб. 2010)"\n' + \
+                                '}'
+                            sub_edit_flag_12 = True
                         elif edit_message_obj['text'] == 'Удалить':
-                            pass
+                            response = '<b>Введите должность, данные по которой хотите удалить.</b>'
+                            sub_edit_flag_13 = True
                         else:
                             continue
 
-                        debug = bot_request('sendMessage',
-                                            'chat_id=' + str(edit_chat_id),
-                                            'parse_mode=HTML',
-                                            'text=' + str(response),
-                                            'reply_to_message_id=' +
-                                            str(edit_message_obj['message_id'])
-                                            )
-                        edit_flag = False
-                        edit_user_id = 0
-                        edit_chat_id = 0
+                        bot_request('sendMessage',
+                                    'chat_id=' + str(edit_chat_id),
+                                    'parse_mode=HTML',
+                                    'text=' + str(response),
+                                    'reply_to_message_id=' +
+                                    str(edit_message_obj['message_id'])
+                                    )
+                        worker_flag = False
+                        edit_flag_1 = False
 
-            if worker_flag:
-                worker_message_obj = worker_message_handler(obj_)
+                        if sub_edit_flag_11:
+                            edit_flag_11 = True
+                        if sub_edit_flag_12:
+                            edit_flag_12 = True
+                        if sub_edit_flag_13:
+                            edit_flag_13 = True
+                        edit_user_id = message_obj['user_id']
+                        edit_chat_id = message_obj['chat_id']
+
+            elif worker_flag:
+                worker_message_obj = command_message_handler(obj_, 'worker')
                 if worker_message_obj:
                     if worker_user_id == worker_message_obj['user_id'] \
                             and worker_chat_id == worker_message_obj['chat_id']:
@@ -318,32 +413,34 @@ def long_pool():
                                             str(worker_message_obj['message_id'])
                                             )
                         worker_flag = False
+                        edit_flag_1 = False
                         worker_user_id = 0
                         worker_chat_id = 0
 
-            message_obj = message_handler(obj_)
-            if message_obj:
-                data = list(db.collection.find({}))
-
-                requested_doc = None
-                if data:
-                    for doc in data:
-                        position = doc['position'].lower().strip()
-                        if position == message_obj['text']:
-                            requested_doc = doc
-                            break
-
-                if requested_doc:
+            else:
+                message_obj = message_handler(obj_)
+                if message_obj:
                     if message_obj['edit']:
                         show_edit_keyboard(message_obj)
-                        edit_flag = True
+                        edit_flag_1 = True
                         edit_user_id = message_obj['user_id']
-                        editr_chat_id = message_obj['chat_id']
+                        edit_chat_id = message_obj['chat_id']
                     else:
-                        show_worker_keyboard(message_obj)
-                        worker_flag = True
-                        worker_user_id = message_obj['user_id']
-                        worker_chat_id = message_obj['chat_id']
+                        data = list(db.collection.find({}))
+
+                        requested_doc = None
+                        if data:
+                            for doc in data:
+                                position = doc['position'].lower().strip()
+                                if position == message_obj['text']:
+                                    requested_doc = doc
+                                    break
+
+                        if requested_doc:
+                            show_worker_keyboard(message_obj)
+                            worker_flag = True
+                            worker_user_id = message_obj['user_id']
+                            worker_chat_id = message_obj['chat_id']
 
 
 def main():
@@ -355,9 +452,14 @@ def main():
 
         init_token()
 
-        long_pool()
+        while True:
+            try:
+                long_pool()
+            except requests.ConnectionError:
+                continue
     except KeyboardInterrupt:
         pass
+
     finally:
         p.terminate()
         print("\rОстановлено\t\t")
