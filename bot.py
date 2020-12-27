@@ -206,6 +206,7 @@ def show_edit_keyboard(message_obj):
                     'text=' + str("У вас недостаточно прав для этого."),
                     'reply_to_message_id=' + str(message_obj['message_id'])
                     )
+        return False
 
     json_keyboard = json.dumps({
         'keyboard': [["Вставить", "Изменить", "Удалить"]],
@@ -220,6 +221,7 @@ def show_edit_keyboard(message_obj):
                     'reply_markup=' + str(json_keyboard),
                     'reply_to_message_id=' + str(message_obj['message_id'])
                     )
+    return True
 
 
 def long_pool():
@@ -452,7 +454,8 @@ def long_pool():
                 message_obj = message_handler(obj_)
                 if message_obj:
                     if message_obj['edit']:
-                        show_edit_keyboard(message_obj)
+                        if not show_edit_keyboard(message_obj):
+                            continue
                         edit_flag_1 = True
                         edit_user_id = message_obj['user_id']
                         edit_chat_id = message_obj['chat_id']
