@@ -26,8 +26,15 @@ def get_script_dir(follow_symlinks=True):
 
 def init_token():
     global token
-    with open(os.path.join(get_script_dir(), 'token'), 'r', encoding='utf-8') as f:
-        token = f.read()
+    try:
+        with open(os.path.join(get_script_dir(), 'token'),
+                  'r', encoding='utf-8') as f:
+            token = f.read()
+    except FileNotFoundError:
+        raise Exception(
+            'Создайте в рабочей директории файл token ' +
+            'и поместите в него токен.\n' +
+            'Токен выглядит так: 123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11')
 
 
 def bot_request(method, *args):
@@ -92,8 +99,9 @@ def command_message_handler(row_obj, overload):
 
                         if overload == 'worker':
                             if (sieve_1['text'] == "Только ФИО"
-                                or sieve_1['text'] == "Всё") \
-                                    and sieve_2['text'] == "Какую информацию вывести?":
+                                    or sieve_1['text'] == "Всё") \
+                                and sieve_2['text'] == "Какую информацию " +\
+                                    "вывести?":
                                 pass
                             else:
                                 return None
@@ -107,10 +115,12 @@ def command_message_handler(row_obj, overload):
                             if 'Введите данные в формате' in sieve_2['text']:
                                 pass
 
-                            elif 'Введите новые данные в формате' in sieve_2['text']:
+                            elif 'Введите новые ' +\
+                                    'данные в формате' in sieve_2['text']:
                                 pass
 
-                            elif 'Введите должность, данные' in sieve_2['text']:
+                            elif 'Введите должность, ' +\
+                                    'данные' in sieve_2['text']:
                                 pass
                             else:
                                 return None
@@ -158,8 +168,6 @@ def message_handler(row_obj):
 
 def task():
     try:
-        global thread_data
-
         start_parsing_time = -99999
 
         first_step = True
@@ -278,21 +286,30 @@ def long_pool():
                                         if not db.insert(text):
                                             time.sleep(1.5)
                                             if not db.insert(text):
-                                                answer_text = 'Ошибка добавления, попробуйте ещё раз'
+                                                answer_text = 'Ошибка ' +\
+                                                    'добавления, ' +\
+                                                    'попробуйте ещё раз'
                                             else:
-                                                answer_text = 'Добавление прошло успешно'
+                                                answer_text = 'Добавление ' +\
+                                                    'прошло успешно'
                                         else:
-                                            answer_text = 'Добавление прошло успешно'
+                                            answer_text = 'Добавление ' +\
+                                                'прошло успешно'
 
                                     elif edit_flag_12:
                                         if not db.edit(text['position'], text):
                                             time.sleep(1.5)
-                                            if not db.edit(text['position'], text):
-                                                answer_text = 'Ошибка изменения, попробуйте ещё раз'
+                                            if not db.edit(text['position'],
+                                                           text):
+                                                answer_text = 'Ошибка ' +\
+                                                    'изменения, попробуйте ' +\
+                                                    'ещё раз'
                                             else:
-                                                answer_text = 'Изменение прошло успешно'
+                                                answer_text = 'Изменение ' +\
+                                                    'прошло успешно'
                                         else:
-                                            answer_text = 'Изменение прошло успешно'
+                                            answer_text = 'Изменение ' +\
+                                                'прошло успешно'
                                 else:
                                     answer_text = 'Некорректный ввод'
                             else:
@@ -304,7 +321,8 @@ def long_pool():
                             if not db.remove(text):
                                 time.sleep(1.5)
                                 if not db.remove(text):
-                                    answer_text = 'Ошибка удаления, попробуйте ещё раз'
+                                    answer_text = 'Ошибка удаления, ' +\
+                                        'попробуйте ещё раз'
                                 else:
                                     answer_text = 'Удаление прошло успешно'
                             else:
@@ -337,31 +355,36 @@ def long_pool():
                         sub_edit_flag_12 = False
                         sub_edit_flag_13 = False
                         if edit_message_obj['text'] == 'Вставить':
-                            response = '<b>Введите данные в формате json-словаря.</b>\nШаблон: \n' + \
+                            response = '<b>Введите данные в формате ' +\
+                                'json-словаря.</b>\nШаблон: \n' + \
                                 '{\n' + \
-                                '\t"position": "Поле должности является обязательным",\n' + \
+                                '\t"position": "Поле должности ' +\
+                                'является обязательным",\n' + \
                                 '\t"office": "A 101",\n' + \
                                 '\t"surname": "Иванов",\n' + \
                                 '\t"name": "Иван",\n' + \
                                 '\t"middle_name": "Иванович",\n' + \
                                 '\t"email": "ivanov.ii@dvfu.ru",\n' + \
-                                '\t"phone": "8 (423) 212 34 55 (доб. 2010)"\n' + \
+                                '\t"phone": "8 (423) 212 34 55"\n' + \
                                 '}'
                             sub_edit_flag_11 = True
                         elif edit_message_obj['text'] == 'Изменить':
-                            response = '<b>Введите новые данные в формате json-словаря.</b>\nШаблон: \n' + \
+                            response = '<b>Введите новые данные в формате ' +\
+                                'json-словаря.</b>\nШаблон: \n' + \
                                 '{\n' + \
-                                '\t"position": "Поле должности является обязательным",\n' + \
+                                '\t"position": "Поле должности ' +\
+                                'является обязательным",\n' + \
                                 '\t"office": "A 101",\n' + \
                                 '\t"surname": "Иванов",\n' + \
                                 '\t"name": "Иван",\n' + \
                                 '\t"middle_name": "Иванович",\n' + \
                                 '\t"email": "ivanov.ii@dvfu.ru",\n' + \
-                                '\t"phone": "8 (423) 212 34 55 (доб. 2010)"\n' + \
+                                '\t"phone": "8 (423) 212 34 55"\n' + \
                                 '}'
                             sub_edit_flag_12 = True
                         elif edit_message_obj['text'] == 'Удалить':
-                            response = '<b>Введите должность, данные по которой хотите удалить.</b>'
+                            response = '<b>Введите должность, данные по ' +\
+                                'которой хотите удалить.</b>'
                             sub_edit_flag_13 = True
                         else:
                             continue
@@ -397,12 +420,16 @@ def long_pool():
                 worker_message_obj = command_message_handler(obj_, 'worker')
                 if worker_message_obj:
                     if worker_user_id == worker_message_obj['user_id'] \
-                            and worker_chat_id == worker_message_obj['chat_id']:
+                            and worker_chat_id == worker_message_obj[
+                                'chat_id']:
                         if worker_message_obj['text'] == 'Только ФИО':
                             response = str(
-                                f"<b>Фамилия</b>: {requested_doc['surname']}\n" +
-                                f"<b>Имя</b>: {requested_doc['name']}\n" +
-                                f"<b>Отчество</b>: {requested_doc['middle_name']}\n"
+                                '<b>Фамилия</b>: ' +
+                                f'{requested_doc.get("surname")}\n' +
+                                '<b>Имя</b>: ' +
+                                f'{requested_doc.get("name")}\n' +
+                                '<b>Отчество</b>: ' +
+                                f'{requested_doc.get("middle_name")}\n'
                             )
                         elif worker_message_obj['text'] == 'Всё':
                             response = ''
@@ -430,13 +457,14 @@ def long_pool():
                         else:
                             continue
 
-                        debug = bot_request('sendMessage',
-                                            'chat_id=' + str(worker_chat_id),
-                                            'parse_mode=HTML',
-                                            'text=' + str(response),
-                                            'reply_to_message_id=' +
-                                            str(worker_message_obj['message_id'])
-                                            )
+                        bot_request(
+                            'sendMessage',
+                            'chat_id=' + str(worker_chat_id),
+                            'parse_mode=HTML',
+                            'text=' + str(response),
+                            'reply_to_message_id=' +
+                            str(worker_message_obj['message_id'])
+                        )
                         worker_flag = False
                         edit_flag_1 = False
                         worker_user_id = 0

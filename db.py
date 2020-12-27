@@ -10,24 +10,6 @@ db = client["db"]
 collection = db["get_rectorate_bot"]
 
 
-def __create(data: List) -> bool:
-    '''
-    Принудительная перезапись коллекции. Используется только при дебаге
-    '''
-
-    global free
-    if free:
-        free = False
-
-        collection.delete_many({})
-        collection.insert_many(data)
-
-        free = True
-        return True
-    else:
-        return False
-
-
 def daily_insert(data: List):
     client = MongoClient()
     db = client["db"]
