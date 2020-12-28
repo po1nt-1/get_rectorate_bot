@@ -4,7 +4,7 @@ import multiprocessing as mp
 import os
 import sys
 import time
-from parser import parser
+from data_parser import parser
 
 import requests
 
@@ -518,6 +518,10 @@ def main():
             try:
                 long_pool()
             except requests.exceptions.ConnectionError:
+                print('Ошибка соединения, перезапускаюсь...')
+                continue
+            except requests.exceptions.SSLError:
+                print('Ошибка SSL, перезапускаюсь...')
                 continue
     except KeyboardInterrupt:
         pass
