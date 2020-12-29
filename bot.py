@@ -4,11 +4,12 @@ import multiprocessing as mp
 import os
 import sys
 import time
-from data_parser import parser
 
 import requests
+from pymongo.errors import ServerSelectionTimeoutError
 
 import db
+from data_parser import parser
 
 
 def get_script_dir(follow_symlinks=True):
@@ -67,6 +68,12 @@ def message_filter(message_obj):
 
         if '/edit' == message[0]:
             message_obj.update({'edit': True})
+            message_obj.update({'list': False})
+            return message_obj
+
+        if '/list' == message[0]:
+            message_obj.update({'edit': False})
+            message_obj.update({'list': True})
             return message_obj
 
         if len(message) == 2:
@@ -75,6 +82,7 @@ def message_filter(message_obj):
             if '/worker' in command:
                 message_obj['text'] = message
                 message_obj.update({'edit': False})
+                message_obj.update({'list': False})
                 return message_obj
     return None
 
@@ -487,6 +495,21 @@ def long_pool():
                         edit_flag_1 = True
                         edit_user_id = message_obj['user_id']
                         edit_chat_id = message_obj['chat_id']
+                    if message_obj['list']:
+                        data = list(db.collection.find({}))
+                        text = '<b>Список имеющихся должностей:</b>\n'
+                        if data:
+                            for doc in data:
+                                text += str(doc['position'] + ';\n')
+
+                        bot_request(
+                            'sendMessage',
+                            'chat_id=' + str(message_obj['chat_id']),
+                            'parse_mode=HTML',
+                            'text=' + text,
+                            'reply_to_message_id=' +
+                            str(message_obj['message_id'])
+                        )
                     else:
                         data = list(db.collection.find({}))
 
@@ -523,7 +546,7 @@ def main():
             except requests.exceptions.SSLError:
                 print('Ошибка SSL, перезапускаюсь...')
                 continue
-            except pymongo.errors.ServerSelectionTimeoutError:
+            except ServerSelectionTimeoutError:
                 print('Ошибка MongoDB, перезапускаюсь...')
                 continue
     except KeyboardInterrupt:
