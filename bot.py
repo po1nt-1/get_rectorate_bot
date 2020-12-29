@@ -523,6 +523,9 @@ def main():
             except requests.exceptions.SSLError:
                 print('Ошибка SSL, перезапускаюсь...')
                 continue
+            except pymongo.errors.ServerSelectionTimeoutError:
+                print('Ошибка MongoDB, перезапускаюсь...')
+                continue
     except KeyboardInterrupt:
         pass
 
